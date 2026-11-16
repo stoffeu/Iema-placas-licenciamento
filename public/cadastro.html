@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cadastrar processo — Licenciamento IEMA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="topbar">
+    <div class="topbar-inner">
+      <span class="tb-item">Acesso à Informação</span>
+      <span class="tb-item">Transparência</span>
+      <span class="tb-item">Ouvidoria</span>
+      <span class="tb-item" id="authSlot"></span>
+      <span class="tb-item">Contato</span>
+      <span class="tb-item">Mapa do Site</span>
+      <span class="tb-item">Acessibilidade</span>
+      <span class="tb-item">A− A A+</span>
+    </div>
+  </div>
+  <div class="mainhead">
+    <div class="mainhead-inner">
+      <div class="brand">
+        <img src="assets/iema-logo.png" alt="IEMA — Instituto Estadual de Meio Ambiente" class="iema-logo">
+      </div>
+      <div class="gov">
+        <img src="assets/governo-es.png" alt="Governo do Estado do Espírito Santo" class="gov-badge">
+      </div>
+    </div>
+  </div>
+  <nav class="menubar">
+    <div class="menubar-inner">
+      <button class="menu-btn">MENU ⌄</button>
+      <div class="social">
+        <span class="soc">f</span><span class="soc">ig</span><span class="soc">in</span><span class="soc">yt</span><span class="soc">⌕</span>
+      </div>
+    </div>
+  </nav>
+</header>
+
+<div class="page-wrap">
+  <p class="crumb"><a href="index.html">← Voltar para processos</a></p>
+  <h1 class="page-title" id="tituloPagina">Cadastrar novo processo</h1>
+  <p class="page-sub" id="subPagina">Preencha os dados da empresa, do processo e dos veículos para iniciar um novo processo de licenciamento ambiental.</p>
+
+  <div id="alertaArea"></div>
+
+  <div class="form-card" id="formCard">
+    <div class="field" id="campoEmpresa">
+      <label for="empresa">Nome da empresa / pessoa</label>
+      <input type="text" id="empresa" placeholder="Ex: Transportadora Vale Verde Ltda.">
+    </div>
+
+    <div class="field-row">
+      <div class="field" id="campoDocumento">
+        <label for="documento">CNPJ / CPF</label>
+        <input type="text" id="documento" placeholder="00.000.000/0000-00 ou 000.000.000-00">
+      </div>
+      <div class="field">
+        <label for="material">Tipo de licença / material</label>
+        <select id="material">
+          <option>Resíduos Perigosos</option>
+          <option>Produtos Perigosos</option>
+          <option>Resíduos da Saúde</option>
+          <option>Resíduos de Construção Civil</option>
+          <option>Resíduos não Perigosos</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field" id="campoProcesso">
+        <label for="processo">Nº do processo</label>
+        <input type="text" id="processo" placeholder="Ex: 82249932" maxlength="8" inputmode="numeric">
+        <span class="hint-text">Exatamente 8 dígitos numéricos</span>
+      </div>
+      <div class="field" id="campoLicenca">
+        <label for="licenca">Nº da licença</label>
+        <input type="text" id="licenca" placeholder="Ex: LAC-134/2026">
+        <span class="hint-text">Três letras, três dígitos e o ano — ex: LAC-134/2026</span>
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field" id="campoValidade">
+        <label for="validade">Data de vencimento</label>
+        <input type="date" id="validade">
+        <span class="hint-text">Data em que a licença deixa de ser válida</span>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="obs">Observações</label>
+      <textarea id="obs" rows="2" placeholder="Informações adicionais (opcional)"></textarea>
+    </div>
+
+    <div class="field">
+      <label>Veículos vinculados a esta licença</label>
+      <p class="vehicle-count" id="vehicleCount">0 veículo(s) adicionado(s)</p>
+      <div class="vehicle-rows" id="vehicleRows"></div>
+      <button type="button" class="btn-add-row" onclick="adicionarLinhaVeiculo()">+ Adicionar veículo</button>
+      <span class="hint-text">Uma licença pode comportar vários veículos — adicione quantos forem necessários.</span>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn-primary" id="btnSalvar" onclick="salvar()">Cadastrar processo</button>
+      <a class="btn-secondary" href="index.html">Cancelar</a>
+    </div>
+  </div>
+
+  <div class="success-card" id="successCard">
+    <div class="success-icon">✓</div>
+    <h2 id="successTitulo">Processo cadastrado com sucesso</h2>
+    <p id="successTexto">O processo foi salvo neste navegador e já aparece na lista de processos.</p>
+    <div class="success-actions">
+      <button class="btn-primary" onclick="window.location.href='index.html'">Ver lista de processos</button>
+      <button class="btn-secondary" id="btnVerProcesso" onclick="">Ver este processo</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/app.js"></script>
+<script>
+  const params = new URLSearchParams(window.location.search);
+  const numeroEdicao = params.get("editar");
+  let linhaSeq = 0;
+
+  function linhaVeiculoHtml(placa = "", modelo = "") {
+    linhaSeq++;
+    const id = linhaSeq;
+    return `
+      <div class="vehicle-row" data-row="${id}">
+        <input type="text" class="linha-placa" placeholder="Placa (ex: RHZ4A12)" maxlength="8" value="${iemaEscapeHtml(placa)}">
+        <input type="text" class="linha-modelo" placeholder="Modelo do veículo" maxlength="80" value="${iemaEscapeHtml(modelo)}">
+        <button type="button" class="btn-remove-row" title="Remover" onclick="removerLinhaVeiculo(${id})">✕</button>
+      </div>`;
+  }
+
+  function adicionarLinhaVeiculo(placa = "", modelo = "") {
+    document.getElementById("vehicleRows").insertAdjacentHTML("beforeend", linhaVeiculoHtml(placa, modelo));
+    atualizarContadorVeiculos();
+  }
+
+  function removerLinhaVeiculo(id) {
+    const linhas = document.querySelectorAll("#vehicleRows .vehicle-row");
+    if (linhas.length <= 1) {
+      const linha = document.querySelector(`.vehicle-row[data-row="${id}"]`);
+      linha.querySelector(".linha-placa").value = "";
+      linha.querySelector(".linha-modelo").value = "";
+      return;
+    }
+    document.querySelector(`.vehicle-row[data-row="${id}"]`).remove();
+    atualizarContadorVeiculos();
+  }
+
+  function atualizarContadorVeiculos() {
+    const linhas = document.querySelectorAll("#vehicleRows .vehicle-row").length;
+    document.getElementById("vehicleCount").textContent = `${linhas} veículo(s) na lista`;
+  }
+
+  function limparErros() {
+    document.querySelectorAll(".field.has-error").forEach((el) => el.classList.remove("has-error"));
+    document.querySelectorAll(".field-error").forEach((el) => el.remove());
+    document.getElementById("alertaArea").innerHTML = "";
+  }
+
+  function marcarErro(idCampo, mensagem) {
+    const campo = document.getElementById(idCampo);
+    campo.classList.add("has-error");
+    const span = document.createElement("span");
+    span.className = "field-error";
+    span.textContent = mensagem;
+    campo.appendChild(span);
+  }
+
+  function mostrarAlerta(html) {
+    document.getElementById("alertaArea").innerHTML = `<div class="alert error">${html}</div>`;
+  }
+
+  function coletarVeiculos() {
+    const linhas = document.querySelectorAll("#vehicleRows .vehicle-row");
+    const veiculos = [];
+    const placasVistas = new Set();
+    for (const linha of linhas) {
+      const placaRaw = linha.querySelector(".linha-placa").value;
+      const modelo = linha.querySelector(".linha-modelo").value.trim();
+      const placa = iemaNormalizarPlaca(placaRaw);
+      if (!placa && !modelo) continue;
+      if (!iemaValidarPlaca(placa)) {
+        return { erro: `Placa inválida: "${iemaEscapeHtml(placaRaw)}". Use o padrão antigo (ABC1234) ou Mercosul (ABC1D23).` };
+      }
+      if (placasVistas.has(placa)) {
+        return { erro: `A placa ${placa} foi informada mais de uma vez.` };
+      }
+      placasVistas.add(placa);
+      veiculos.push({ placa, modelo });
+    }
+    return { veiculos };
+  }
+
+  const CAMPOS_COM_ERRO = {
+    empresa: "campoEmpresa",
+    documento: "campoDocumento",
+    processo: "campoProcesso",
+    licenca: "campoLicenca",
+    validade: "campoValidade"
+  };
+
+  async function salvar() {
+    limparErros();
+
+    const empresa = document.getElementById("empresa").value.trim();
+    const documento = document.getElementById("documento").value.trim();
+    const material = document.getElementById("material").value;
+    const processo = document.getElementById("processo").value.trim();
+    const licenca = document.getElementById("licenca").value.trim();
+    const validade = document.getElementById("validade").value;
+    const observacoes = document.getElementById("obs").value.trim();
+
+    let temErro = false;
+    if (!empresa) { marcarErro("campoEmpresa", "Informe o nome da empresa ou pessoa."); temErro = true; }
+    if (!iemaValidarDocumento(documento)) { marcarErro("campoDocumento", "Informe um CNPJ (14 dígitos) ou CPF (11 dígitos) válido."); temErro = true; }
+    if (!iemaValidarProcesso(processo)) { marcarErro("campoProcesso", "O número do processo deve ter exatamente 8 dígitos (ex: 82249932)."); temErro = true; }
+    if (!validade) { marcarErro("campoValidade", "Informe a data de vencimento da licença."); temErro = true; }
+    if (!iemaValidarLicenca(licenca)) { marcarErro("campoLicenca", "Use o formato AAA-999/9999 (ex: LAC-134/2026)."); temErro = true; }
+
+    const resultadoVeiculos = coletarVeiculos();
+    if (resultadoVeiculos.erro) { mostrarAlerta(resultadoVeiculos.erro); temErro = true; }
+    if (temErro) return;
+
+    const dados = { empresa, documento, material, licenca, validade, observacoes, veiculos: resultadoVeiculos.veiculos };
+
+    const btn = document.getElementById("btnSalvar");
+    const textoOriginal = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Salvando…";
+
+    const r = numeroEdicao
+      ? await iemaAtualizar(numeroEdicao, dados)
+      : await iemaCriar({ ...dados, processo });
+
+    btn.disabled = false;
+    btn.textContent = textoOriginal;
+
+    if (r.ok) {
+      mostrarSucesso(numeroEdicao || processo, !!numeroEdicao);
+      return;
+    }
+    if (r.status === 401) { iemaSessaoExpirada(); return; }
+
+    if (r.status === 409) {
+      const existente = await iemaObter(processo);
+      const empresaExistente = existente.ok ? existente.dados.processo.empresa : null;
+      mostrarAlerta(`
+        <strong>Já existe um processo com o número ${iemaEscapeHtml(processo)}.</strong>
+        <span>${empresaExistente ? `Empresa cadastrada: ${iemaEscapeHtml(empresaExistente)}. ` : ""}Não é possível criar outro processo com o mesmo número —
+        <a href="cadastro.html?editar=${encodeURIComponent(processo)}">edite o processo existente</a> para adicionar veículos ou atualizar os dados.</span>
+      `);
+      marcarErro("campoProcesso", "Número de processo já cadastrado.");
+      return;
+    }
+
+    if (r.status === 400 && r.dados && r.dados.erros) {
+      const outros = [];
+      for (const [campo, msg] of Object.entries(r.dados.erros)) {
+        if (CAMPOS_COM_ERRO[campo]) marcarErro(CAMPOS_COM_ERRO[campo], msg);
+        else outros.push(iemaEscapeHtml(msg));
+      }
+      if (outros.length) mostrarAlerta(outros.join("<br>"));
+      return;
+    }
+
+    mostrarAlerta(iemaEscapeHtml((r.dados && r.dados.erro) || "Não foi possível salvar. Tente novamente."));
+  }
+
+  function mostrarSucesso(numero, eraEdicao) {
+    document.getElementById("formCard").style.display = "none";
+    document.getElementById("successTitulo").textContent = eraEdicao
+      ? "Alterações salvas com sucesso"
+      : "Processo cadastrado com sucesso";
+    document.getElementById("successTexto").textContent = eraEdicao
+      ? "Os dados do processo e a lista de veículos foram atualizados."
+      : "O processo foi salvo e já aparece na lista de processos.";
+    document.getElementById("btnVerProcesso").onclick = () => {
+      window.location.href = `processo.html?numero=${encodeURIComponent(numero)}`;
+    };
+    document.getElementById("successCard").classList.add("show");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function carregarModoEdicao() {
+    document.getElementById("formCard").style.display = "none";
+    const r = await iemaObter(numeroEdicao);
+    if (!r.ok) {
+      mostrarAlerta(r.status === 404
+        ? `Não existe nenhum processo com o número ${iemaEscapeHtml(numeroEdicao)} para editar.`
+        : iemaEscapeHtml((r.dados && r.dados.erro) || "Não foi possível carregar o processo."));
+      return;
+    }
+    const p = r.dados.processo;
+
+    document.getElementById("tituloPagina").textContent = `Editar processo nº ${p.processo}`;
+    document.getElementById("subPagina").textContent = "Atualize os dados da empresa ou gerencie os veículos vinculados a esta licença.";
+    document.getElementById("btnSalvar").textContent = "Salvar alterações";
+
+    document.getElementById("empresa").value = p.empresa;
+    document.getElementById("documento").value = p.documento;
+    document.getElementById("material").value = p.material;
+    document.getElementById("validade").value = p.validade || "";
+    document.getElementById("obs").value = p.observacoes || "";
+    document.getElementById("licenca").value = p.licenca;
+
+    const campoProcesso = document.getElementById("processo");
+    campoProcesso.value = p.processo;
+    campoProcesso.disabled = true;
+    campoProcesso.nextElementSibling.textContent = "O número do processo não pode ser alterado depois de criado.";
+
+    document.getElementById("vehicleRows").innerHTML = "";
+    if (p.veiculos.length) p.veiculos.forEach((v) => adicionarLinhaVeiculo(v.placa, v.modelo));
+    else adicionarLinhaVeiculo();
+
+    document.getElementById("formCard").style.display = "";
+  }
+
+  if (iemaExigirAdmin()) {
+    if (numeroEdicao) carregarModoEdicao();
+    else adicionarLinhaVeiculo();
+  }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Detalhe do processo — Licenciamento IEMA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="topbar">
+    <div class="topbar-inner">
+      <span class="tb-item">Acesso à Informação</span>
+      <span class="tb-item">Transparência</span>
+      <span class="tb-item">Ouvidoria</span>
+      <span class="tb-item" id="authSlot"></span>
+      <span class="tb-item">Contato</span>
+      <span class="tb-item">Mapa do Site</span>
+      <span class="tb-item">Acessibilidade</span>
+      <span class="tb-item">A− A A+</span>
+    </div>
+  </div>
+  <div class="mainhead">
+    <div class="mainhead-inner">
+      <div class="brand">
+        <img src="assets/iema-logo.png" alt="IEMA — Instituto Estadual de Meio Ambiente" class="iema-logo">
+      </div>
+      <div class="gov">
+        <img src="assets/governo-es.png" alt="Governo do Estado do Espírito Santo" class="gov-badge">
+      </div>
+    </div>
+  </div>
+  <nav class="menubar">
+    <div class="menubar-inner">
+      <button class="menu-btn">MENU ⌄</button>
+      <div class="social">
+        <span class="soc">f</span><span class="soc">ig</span><span class="soc">in</span><span class="soc">yt</span><span class="soc">⌕</span>
+      </div>
+    </div>
+  </nav>
+</header>
+
+<div class="page-wrap" id="pageWrap">
+  <p class="crumb"><a href="index.html">← Voltar para processos</a></p>
+  <div id="conteudo"><p class="hint-text">Carregando…</p></div>
+</div>
+
+<script src="assets/app.js"></script>
+<script>
+  const numero = new URLSearchParams(location.search).get("numero") || "";
+  const conteudo = document.getElementById("conteudo");
+  let processo = null;
+
+  function render() {
+    const p = processo;
+    const admin = iemaEstaLogado();
+
+    const veiculosHtml = p.veiculos.length
+      ? p.veiculos.map((v) => `
+        <div class="vehicle-card">
+          <div><div class="v-plate">${iemaEscapeHtml(v.placa)}</div><div class="v-type">${iemaEscapeHtml(v.modelo || "Modelo não informado")}</div></div>
+          ${admin ? `<button class="v-remove" title="Remover veículo" data-placa="${iemaEscapeHtml(v.placa)}">✕</button>` : ""}
+        </div>`).join("")
+      : `<p class="hint-text">Nenhum veículo cadastrado neste processo ainda.</p>`;
+
+    conteudo.innerHTML = `
+      <div class="detail-top">
+        <h1 class="page-title">Processo nº ${iemaEscapeHtml(p.processo)}</h1>
+      </div>
+      <p class="page-sub">${iemaEscapeHtml(p.empresa)}</p>
+
+      <div class="info-card">
+        <div class="info-row"><span class="label">Empresa / Pessoa</span><span class="value">${iemaEscapeHtml(p.empresa)}</span></div>
+        <div class="info-row"><span class="label">CNPJ / CPF</span><span class="value">${iemaEscapeHtml(p.documento)}</span></div>
+        <div class="info-row"><span class="label">Nº do processo</span><span class="value">${iemaEscapeHtml(p.processo)}</span></div>
+        <div class="info-row"><span class="label">Tipo de licença / material</span><span class="value">${iemaEscapeHtml(p.material)}</span></div>
+        <div class="info-row"><span class="label">Nº da licença</span><span class="value">${iemaEscapeHtml(p.licenca)}</span></div>
+        <div class="info-row"><span class="label">Data de vencimento</span><span class="value">${iemaFormatarDataBR(p.validade)}</span></div>
+        ${p.observacoes ? `<div class="info-row"><span class="label">Observações</span><span class="value">${iemaEscapeHtml(p.observacoes)}</span></div>` : ""}
+      </div>
+
+      ${admin ? `
+      <div class="form-actions" style="margin-bottom:32px">
+        <a class="btn-primary" href="cadastro.html?editar=${encodeURIComponent(p.processo)}">Editar dados do processo</a>
+        <button class="btn-secondary" id="btnExcluir">Excluir processo</button>
+      </div>` : ""}
+
+      <h2 class="section-title">Veículos licenciados (${p.veiculos.length})</h2>
+      <div class="vehicle-list" id="vehicleList">${veiculosHtml}</div>
+
+      ${admin ? `
+      <div class="add-vehicle-inline">
+        <input type="text" id="novaPlaca" placeholder="Placa (ex: RHZ4A12)" maxlength="8">
+        <input type="text" id="novoModelo" placeholder="Modelo do veículo" maxlength="80">
+        <button class="btn-primary" id="btnAddVeiculo">+ Adicionar veículo</button>
+      </div>
+      <p id="erroVeiculo" class="field-error" style="margin-top:8px"></p>` : ""}
+    `;
+
+    if (admin) {
+      document.getElementById("btnAddVeiculo").addEventListener("click", adicionarVeiculo);
+      document.getElementById("btnExcluir").addEventListener("click", excluirProcesso);
+      document.querySelectorAll(".v-remove").forEach((b) => b.addEventListener("click", () => removerVeiculo(b.dataset.placa)));
+    }
+  }
+
+  function tratarEscrita(r, erroEl) {
+    if (r.ok) return true;
+    if (r.status === 401) { iemaSessaoExpirada(); return false; }
+    const msg = (r.dados && r.dados.erro) || "Não foi possível concluir a operação.";
+    if (erroEl) erroEl.textContent = msg; else alert(msg);
+    return false;
+  }
+
+  async function adicionarVeiculo() {
+    const placaEl = document.getElementById("novaPlaca");
+    const modeloEl = document.getElementById("novoModelo");
+    const erroEl = document.getElementById("erroVeiculo");
+    const placa = iemaNormalizarPlaca(placaEl.value);
+
+    if (!iemaValidarPlaca(placa)) {
+      erroEl.textContent = "Informe uma placa válida, no padrão antigo (ABC1234) ou Mercosul (ABC1D23).";
+      return;
+    }
+    erroEl.textContent = "";
+    const r = await iemaAdicionarVeiculo(numero, { placa, modelo: modeloEl.value.trim() });
+    if (!tratarEscrita(r, erroEl)) return;
+    processo = r.dados.processo;
+    render();
+  }
+
+  async function removerVeiculo(placa) {
+    if (!confirm(`Remover o veículo ${placa} deste processo?`)) return;
+    const r = await iemaRemoverVeiculo(numero, placa);
+    if (!tratarEscrita(r, null)) return;
+    processo = r.dados.processo;
+    render();
+  }
+
+  async function excluirProcesso() {
+    if (!confirm("Tem certeza que deseja excluir este processo? Esta ação não pode ser desfeita.")) return;
+    const r = await iemaExcluir(numero);
+    if (!tratarEscrita(r, null)) return;
+    location.href = "index.html";
+  }
+
+  async function carregar() {
+    const r = await iemaObter(numero);
+    if (!r.ok) {
+      conteudo.innerHTML = `
+        <div class="alert error">
+          <strong>${r.status === 404 ? "Processo não encontrado." : "Não foi possível carregar o processo."}</strong>
+          <span>${r.status === 404 ? `Não existe nenhum processo cadastrado com o número "${iemaEscapeHtml(numero)}".` : iemaEscapeHtml((r.dados && r.dados.erro) || "")}</span>
+        </div>
+        <a class="btn-secondary" href="index.html">Voltar para a lista</a>`;
+      return;
+    }
+    processo = r.dados.processo;
+    document.title = `Processo ${processo.processo} — Licenciamento IEMA`;
+    render();
+  }
+
+  carregar();
+</script>
+
+</body>
+</html>
